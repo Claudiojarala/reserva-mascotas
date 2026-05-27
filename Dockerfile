@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 8050
+# Eliminamos el EXPOSE fijo porque Railway asigna el puerto dinámicamente
 
-# COMANDO CORREGIDO: Arranca el servidor de Streamlit en el puerto asignado por Railway
+# COMANDO CORREGIDO: Usamos el puerto que Railway nos impone en producción
 CMD ["streamlit", "run", "app.py", "--server.port", "8050", "--server.address", "0.0.0.0"]
