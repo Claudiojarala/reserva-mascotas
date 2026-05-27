@@ -3,12 +3,11 @@ import base64
 from sqlalchemy import create_engine, Column, Integer, String, Date, ForeignKey
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
-# --- CONFIGURACIÓN DE CONEXIÓN INTELIGENTE ---
+# --- CONFIGURACIÓN DE CONEXIÓN DE PRODUCCIÓN ---
 DB_HOST = os.getenv("DB_HOST", "localhost")
 
-# Si la variable contiene la URL completa de Railway, forzamos el uso de psycopg2
+# Si contiene la URL de Railway (pública o interna), inyectamos psycopg2 explícitamente
 if "proxy.rlwy.net" in DB_HOST or "postgres.railway.internal" in DB_HOST:
-    # Aseguramos que inicie con postgresql+psycopg2:// para evitar fallos de parseo de puertos
     if DB_HOST.startswith("postgresql://"):
         DATABASE_URL = DB_HOST.replace("postgresql://", "postgresql+psycopg2://")
     elif DB_HOST.startswith("postgres://"):
@@ -16,7 +15,7 @@ if "proxy.rlwy.net" in DB_HOST or "postgres.railway.internal" in DB_HOST:
     else:
         DATABASE_URL = DB_HOST
 else:
-    # Formato clásico para tu entorno local de desarrollo
+    # Configuración por defecto para tu entorno local
     DATABASE_URL = f"postgresql+psycopg2://postgres:password_seguro@{DB_HOST}:5432/guarderia_db"
 
 engine = create_engine(DATABASE_URL)
@@ -24,7 +23,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 # --- CAPA DE SEGURIDAD: Cifrado en Reposo ---
-SECRET_KEY = 42  # Llave simétrica para la máscara XOR académica
+SECRET_KEY = 42  # Llave simétrica XOR académica
 
 def cifrar_dato(texto):
     if not texto: return ""
