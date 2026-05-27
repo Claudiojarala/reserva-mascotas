@@ -1,5 +1,5 @@
-# 1. Usar una imagen ligera de Python
-FROM python:3.10-slim
+# 1. Usar una versión de Python moderna (3.11) que soporta Pandas 3.0+
+FROM python:3.11-slim
 
 # 2. Definir el directorio de trabajo dentro del contenedor
 WORKDIR /app
