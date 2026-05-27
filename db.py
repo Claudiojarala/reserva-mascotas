@@ -28,9 +28,12 @@ Base = declarative_base()
 # ==============================================================================
 _fernet_key_env = os.getenv("FERNET_KEY")
 if _fernet_key_env:
+    # Se asegura de convertir el string a bytes para dárselo a Fernet
     FERNET_KEY = _fernet_key_env.encode()
 else:
-    FERNET_KEY = Fernet.generate_key()  # Se genera en memoria si no hay variable de entorno
+    # Si no existe en Railway, se genera una válida temporal en memoria
+    from cryptography.fernet import Fernet
+    FERNET_KEY = Fernet.generate_key()
 
 fernet = Fernet(FERNET_KEY)
 
