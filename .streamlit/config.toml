@@ -1,14 +1,14 @@
 [theme]
-# Detalles activos y botones en Verde Amazónico brillante
-primaryColor = "#4CAF50"
+# Detalles activos y botones en un verde más claro y vivo
+primaryColor = "#2ECC71"
 
-# Fondo cálido tipo arena/marfil (adiós al blanco aburrido)
+# Fondo de la aplicación (Marfil suave muy elegante)
 backgroundColor = "#FDFBF7"
 
-# Menú lateral en un tono Jungla Profundo que resalta de inmediato
-secondaryBackgroundColor = "#1B3A2B"
+# El fondo del menú lateral (Verde corporativo limpio)
+secondaryBackgroundColor = "#27AE60"
 
-# Texto principal en gris oscuro elegante para máxima legibilidad
-textColor = "#263238"
+# Texto principal de la app en gris oscuro
+textColor = "#2C3E50"
 
 font = "sans serif"
