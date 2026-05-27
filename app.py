@@ -1,142 +1,180 @@
-import dash
-from dash import dcc, html, Input, Output, State, dash_table
-import pandas as pd
-from datetime import datetime
+import os
+import streamlit as st
+import pymongo
+from google import genai
+from google.genai import types
 
-# Importamos tu Capa de Datos y Seguridad
+# Importaciones relacionales desde db.py
 from db import SessionLocal, Reserva, Dueno, Mascota, cifrar_dato, descifrar_dato, inicializar_base_de_datos
 
-# Intentar crear las tablas al arrancar el contenedor
-try:
-    inicializar_base_de_datos()
-except Exception as e:
-    print(f"Esperando a que la base de datos esté lista... ({e})")
+# ==============================================================================
+# 1. CARGA INTELIGENTE DE VARIABLES
+# ==============================================================================
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+MONGODB_URI = os.getenv("MONGODB_URI")
 
-# Función para consultar los datos reales de PostgreSQL mediante SQLAlchemy
-def obtener_calendario_reservas():
-    db = SessionLocal()
+if not GOOGLE_API_KEY or not MONGODB_URI:
+    st.error("❌ Faltan configurar las variables de entorno en tu panel.")
+    st.stop()
+
+# ==============================================================================
+# 2. INSTANCIACIÓN DE CLIENTES CON CACHÉ
+# ==============================================================================
+@st.cache_resource
+def get_genai_client():
+    return genai.Client(api_key=GOOGLE_API_KEY)
+
+@st.cache_resource
+def get_mongo_collection():
+    client = pymongo.MongoClient(MONGODB_URI)
+    db = client["pdf_embeddings_db"]
+    return db["pdf_vectors"]
+
+client_genai = get_genai_client()
+collection_mongo = get_mongo_collection()
+
+# Inicializamos las tablas en Postgres al arrancar
+inicializar_base_de_datos()
+
+# ==============================================================================
+# 3. PIPELINE DE INTELIGENCIA ARTIFICIAL (RAG)
+# ==============================================================================
+def crear_embedding_query(texto: str):
+    response = client_genai.models.embed_content(
+        model="gemini-embedding-001",
+        contents=texto,
+        config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY"),
+    )
+    return response.embeddings.values
+
+def buscar_contexto_pdf(embedding, k=4):
+    pipeline = [
+        {
+            "$vectorSearch": {
+                "index": "vector_index",
+                "path": "embedding",
+                "queryVector": embedding,
+                "numCandidates": 100,
+                "limit": k,
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "texto": 1,
+                "score": {"$meta": "vectorSearchScore"},
+            }
+        },
+    ]
     try:
-        reservas_db = db.query(Reserva).all()
-        datos_limpios = []
-        for r in reservas_db:
-            mascota_obj = r.mascota
-            dueno_obj = Glen_obj = mascota_obj.dueno
-            
-            # Desciframos el dato sensible en tiempo de ejecución para mostrarlo en la interfaz
-            tel_descifrado = descifrar_dato(dueno_obj.telefono_cifrado)
-            
-            datos_limpios.append({
-                "id_reserva": r.id_reserva,
-                "mascota": f"{mascota_obj.nombre_mascota} ({mascota_obj.especie})",
-                "dueño": f"{dueno_obj.nombre} (Tel: {tel_descifrado})",
-                "fecha_ingreso": str(r.fecha_ingreso),
-                "dieta_restriccion": r.dieta_restriccion
-            })
-        return pd.DataFrame(datos_limpios)
+        return list(collection_mongo.aggregate(pipeline))
     except Exception as e:
-        print(f"Error al leer BD: {e}")
-        return pd.DataFrame(columns=["id_reserva", "mascota", "dueño", "fecha_ingreso", "dieta_restriccion"])
-    finally:
-        db.close()
+        return []
 
-# 2. Inicializar la Aplicación de Dash
-app = dash.Dash(__name__, title="Control Guardería Exótica")
+def generar_respuesta_llm(pregunta: str, contextos: list) -> str:
+    contexto_str = "\n\n".join([c["texto"] for c in contextos])
+    prompt = f"""Eres un asistente experto para la Guardería de Mascotas Exóticas. 
+Usa EXCLUSIVAMENTE el siguiente contexto técnico para responder la pregunta del usuario. 
 
-# 3. Diseño de la Interfaz Visual (Frontend de la Capa de Aplicación - Mantenido de tus compañeros)
-app.layout = html.Div(style={'fontFamily': 'Arial, sans-serif', 'padding': '20px', 'backgroundColor': '#fcfaf7'}, children=[
-    html.H1("Plataforma de Gestión: Guardería de Animales Exóticos 🦎🦉", style={'textAlign': 'center', 'color': '#2c3e50'}),
-    html.Hr(),
+Contexto Técnico:
+{contexto_str}
+
+Pregunta del Usuario: {pregunta}
+Responde de forma concisa y clara en español."""
+
+    response = client_genai.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
+    return response.text
+
+# ==============================================================================
+# 4. INTERFAZ GRÁFICA (Streamlit UI)
+# ==============================================================================
+st.set_page_config(page_title="Control Guardería Exótica", page_icon="🐾", layout="wide")
+
+menu = ["💬 Chatbot Asistente IA (RAG)", "📋 Registrar Dueño y Mascota", "📅 Gestionar Reservas"]
+opcion = st.sidebar.selectbox("Módulos del Sistema", menu)
+
+# MÓDULO 1: CHATBOT (Tu ejemplo del Notebook integrado)
+if opcion == "💬 Chatbot Asistente IA (RAG)":
+    st.title("💬 Consultas Técnicas (MongoDB Atlas + Gemini)")
     
-    html.Div(style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px', 'marginBottom': '20px', 'boxShadow': '0px 2px 4px rgba(0,0,0,0.05)'}, children=[
-        html.H3("Programar Cita de Cuidado / Actualizar Dieta Específica", style={'marginTop': '0', 'color': '#16a085'}),
-        html.Div(style={'display': 'flex', 'gap': '15px', 'flexWrap': 'wrap'}, children=[
-            html.Div([html.Label("ID Reserva:"), html.Br(), dcc.Input(id='input-id-reserva', type='number', placeholder='Ej. 104', style={'padding': '8px', 'width': '100px'})]),
-            html.Div([html.Label("Mascota y Especie:"), html.Br(), dcc.Input(id='input-mascota', type='text', placeholder='Ej. Spike (Erizo)', style={'padding': '8px', 'width': '200px'})]),
-            html.Div([html.Label("Dueño:"), html.Br(), dcc.Input(id='input-dueno', type='text', placeholder='Ej. Juan Pérez', style={'padding': '8px', 'width': '150px'})]),
-            html.Div([html.Label("Fecha Ingreso:"), html.Br(), dcc.Input(id='input-fecha', type='text', placeholder='AAAA-MM-DD', style={'padding': '8px', 'width': '120px'})]),
-            html.Div([html.Label("Restricción Alimentaria / Dieta:"), html.Br(), dcc.Input(id='input-dieta', type='text', placeholder='Detalles de alimentación...', style={'padding': '8px', 'width': '350px'})]),
-            html.Button('Registrar Reserva', id='btn-registrar', n_clicks=0, style={'backgroundColor': '#16a085', 'color': 'white', 'border': 'none', 'padding': '10px 20px', 'borderRadius': '4px', 'cursor': 'pointer', 'alignSelf': 'flex-end'})
-        ]),
-        html.Div(id='output-mensaje-reserva', style={'marginTop': '15px', 'fontWeight': 'bold', 'color': '#27ae60'})
-    ]),
-    
-    html.Div(style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px', 'boxShadow': '0px 2px 4px rgba(0,0,0,0.05)'}, children=[
-        html.H3("Calendario de Reservas y Dietas Activas", style={'marginTop': '0', 'color': '#2c3e50'}),
-        dash_table.DataTable(
-            id='tabla-reservas',
-            columns=[
-                {"name": "ID Reserva", "id": "id_reserva"},
-                {"name": "Mascota (Especie)", "id": "mascota"},
-                {"name": "Dueño / Contacto", "id": "dueño"},
-                {"name": "Fecha de Ingreso", "id": "fecha_ingreso"},
-                {"name": "Restricción Alimentaria / Dieta", "id": "dieta_restriccion"}
-            ],
-            data=obtener_calendario_reservas().to_dict('records'), # Carga dinámica inicial
-            style_header={'backgroundColor': '#2c3e50', 'color': 'white', 'fontWeight': 'bold'},
-            style_cell={'padding': '12px', 'textAlign': 'left', 'whiteSpace': 'normal', 'height': 'auto'},
-            style_data_conditional=[{
-                'if': {'column_id': 'dieta_restriccion', 'filter_query': '{dieta_restriccion} contains "Estricta"'},
-                'backgroundColor': '#fff2cc', 'color': '#b78103', 'fontWeight': 'bold'
-            }]
-        )
-    ])
-])
+    if "historial" not in st.session_state:
+        st.session_state.historial = []
 
-# 4. Lógica del Servidor / Callbacks (Modificado con SQLAlchemy ORM real)
-@app.callback(
-    [Output('tabla-reservas', 'data'),
-     Output('output-mensaje-reserva', 'children')],
-    Input('btn-registrar', 'n_clicks'),
-    [State('input-id-reserva', 'value'),
-     State('input-mascota', 'value'),
-     State('input-dueno', 'value'),
-     State('input-fecha', 'value'),
-     State('input-dieta', 'value')]
-)
-def gestionar_reservas(n_clicks, id_res, masc, owner, date, dieta):
-    df_actual = obtener_calendario_reservas()
-    if n_clicks == 0 or id_res is None or not masc or not owner or not date or not dieta:
-        return df_actual.to_dict('records'), ""
-    
-    if id_res in df_actual['id_reserva'].values:
-        return df_actual.to_dict('records'), f"❌ Error: El ID de Reserva {id_res} ya está ocupado."
-    
-    db = SessionLocal()
-    try:
-        # Formatear la fecha ingresada
-        fecha_valida = datetime.strptime(date, "%Y-%m-%d").date()
-        
-        # Cifrar datos sensibles antes de enviarlos a la BD (Capa de Seguridad en Reposo)
-        telefono_cifrado = cifrar_dato("999-EXOTIC-CARE")
-        correo_cifrado = cifrar_dato(f"{owner.lower().replace(' ', '')}@mail.com")
-        
-        # Procesar cadena de Mascota para separar Nombre y Especie si viene como "Spike (Erizo)"
-        if "(" in masc and ")" in masc:
-            nom_m, esp_m = masc.replace(")", "").split("(")
-            nom_m, esp_m = nom_m.strip(), esp_m.strip()
-        else:
-            nom_m, esp_m = masc, "Exótica"
+    for msg in st.session_state.historial:
+        st.chat_message("user" if msg["rol"] == "usuario" else "assistant").write(msg["texto"])
 
-        # Crear registros vinculados relacionalmente mediante el ORM
-        nuevo_dueno = Dueno(nombre=owner, correo_cifrado=correo_cifrado, telefono_cifrado=telefono_cifrado)
-        nueva_mascota = Mascota(nombre_mascota=nom_m, especie=esp_m, dueno=nuevo_dueno)
-        nueva_reserva = Reserva(id_reserva=id_res, fecha_ingreso=fecha_valida, dieta_restriccion=dieta, mascota=nueva_mascota)
-        
-        # Agregar a la sesión y confirmar la transacción
-        db.add(nuevo_dueno)
-        db.add(nueva_mascota)
-        db.add(nueva_reserva)
-        db.commit()
-        
-        # Retornar la tabla actualizada leyendo directo de la BD
-        df_actual = obtener_calendario_reservas()
-        return df_actual.to_dict('records'), f"✅ Reserva {id_res} guardada en PostgreSQL de forma relacional."
-    except Exception as e:
-        db.rollback()
-        return df_actual.to_dict('records'), f"❌ Error transaccional: {str(e)}"
-    finally:
-        db.close()
+    pregunta = st.chat_input("Escribe tu duda técnica...")
 
-# 5. Ejecutar Servidor
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8050)
+    if pregunta:
+        st.chat_message("user").write(pregunta)
+        st.session_state.historial.append({"rol": "usuario", "texto": pregunta})
+
+        with st.chat_message("assistant"):
+            with st.spinner("Buscando en Atlas..."):
+                try:
+                    vector_query = crear_embedding_query(pregunta)
+                    fragmentos = buscar_contexto_pdf(vector_query, k=4)
+                    respuesta = generar_respuesta_llm(pregunta, fragmentos) if fragmentos else "No encontré información relevante."
+                except Exception as e:
+                    respuesta = f"⚠️ Error: {e}"
+            st.write(respuesta)
+        st.session_state.historial.append({"rol": "bot", "texto": respuesta})
+
+# MÓDULO 2: TRANSACCIONES EN POSTGRESQL
+elif opcion == "📋 Registrar Dueño y Mascota":
+    st.title("📋 Registro Seguro de Clientes")
+    db_session = SessionLocal()
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        id_dueno = st.number_input("ID Propietario", min_value=1, step=1)
+        nombre_dueno = st.text_input("Nombre Completo")
+        correo = st.text_input("Correo")
+        telefono = st.text_input("Teléfono")
+    with col2:
+        id_mascota = st.number_input("ID Mascota", min_value=1, step=1)
+        nombre_mascota = st.text_input("Nombre Mascota")
+        especie = st.selectbox("Especie", ["Reptil", "Ave Exótica", "Otro"])
+
+    if st.button("Guardar Registro"):
+        if nombre_dueno and correo and nombre_mascota:
+            try:
+                nuevo_dueno = Dueno(id_dueno=id_dueno, nombre=nombre_dueno, correo_cifrado=cifrar_dato(correo), telefono_cifrado=cifrar_dato(telefono))
+                nueva_mascota = Mascota(id_mascota=id_mascota, id_dueno=id_dueno, nombre_mascota=nombre_mascota, especie=especie)
+                db_session.add(nuevo_dueno)
+                db_session.add(nueva_mascota)
+                db_session.commit()
+                st.success("✅ Datos guardados con éxito en Postgres.")
+            except Exception as e:
+                db_session.rollback()
+                st.error(f"❌ Error: {e}")
+    db_session.close()
+
+# MÓDULO 3: GESTIÓN DE RESERVAS
+elif opcion == "📅 Gestionar Reservas":
+    st.title("📅 Programación de Estadías")
+    db_session = SessionLocal()
+    mascotas_db = db_session.query(Mascota).all()
+    opciones_mascotas = {f"ID {m.id_mascota} - {m.nombre_mascota}": m.id_mascota for m in mascotas_db}
+    
+    if not opciones_mascotas:
+        st.info("Registra una mascota primero.")
+    else:
+        id_reserva = st.number_input("ID Reserva", min_value=1, step=1)
+        mascota_sel = st.selectbox("Selecciona la Mascota", list(opciones_mascotas.keys()))
+        fecha = st.date_input("Fecha de Ingreso")
+        restricciones = st.text_area("Restricciones Alimenticias")
+        
+        if st.button("Confirmar Reserva"):
+            try:
+                nueva_reserva = Reserva(id_reserva=id_reserva, id_mascota=opciones_mascotas[mascota_sel], fecha_ingreso=fecha, dieta_restriccion=restricciones)
+                db_session.add(nueva_reserva)
+                db_session.commit()
+                st.success("✅ Reserva agendada.")
+            except Exception as e:
+                db_session.rollback()
+                st.error(f"❌ Error: {e}")
+    db_session.close()
