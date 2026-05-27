@@ -3,16 +3,27 @@ import base64
 from sqlalchemy import create_engine, Column, Integer, String, Date, ForeignKey
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
-# Configuración de conexión dinámica para Docker
-# Si corre dentro de Docker usará 'postgres_db', si lo pruebas suelto usará 'localhost'
+# --- CONFIGURACIÓN DE CONEXIÓN INTELIGENTE ---
 DB_HOST = os.getenv("DB_HOST", "localhost")
-DATABASE_URL = f"postgresql://postgres:password_seguro@{DB_HOST}:5432/guarderia_db"
+
+# Si la variable contiene la URL completa de Railway, forzamos el uso de psycopg2
+if "proxy.rlwy.net" in DB_HOST or "postgres.railway.internal" in DB_HOST:
+    # Aseguramos que inicie con postgresql+psycopg2:// para evitar fallos de parseo de puertos
+    if DB_HOST.startswith("postgresql://"):
+        DATABASE_URL = DB_HOST.replace("postgresql://", "postgresql+psycopg2://")
+    elif DB_HOST.startswith("postgres://"):
+        DATABASE_URL = DB_HOST.replace("postgres://", "postgresql+psycopg2://")
+    else:
+        DATABASE_URL = DB_HOST
+else:
+    # Formato clásico para tu entorno local de desarrollo
+    DATABASE_URL = f"postgresql+psycopg2://postgres:password_seguro@{DB_HOST}:5432/guarderia_db"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# --- CAPA DE SEGURIDAD: Cifrado en Reposo (Datos de Contacto) ---
+# --- CAPA DE SEGURIDAD: Cifrado en Reposo ---
 SECRET_KEY = 42  # Llave simétrica para la máscara XOR académica
 
 def cifrar_dato(texto):
@@ -50,7 +61,7 @@ class Mascota(Base):
 
 class Reserva(Base):
     __tablename__ = 'reservas'
-    id_reserva = Column(Integer, primary_key=True)  # ID Manual de la UI
+    id_reserva = Column(Integer, primary_key=True)
     id_mascota = Column(Integer, ForeignKey('mascotas.id_mascota', ondelete='CASCADE'))
     fecha_ingreso = Column(Date, nullable=False)
     dieta_restriccion = Column(String, nullable=False)
