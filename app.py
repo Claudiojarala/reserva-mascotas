@@ -2,180 +2,256 @@ import os
 import streamlit as st
 from sqlalchemy.orm import Session
 
-# Importaciones directas desde tu db.py relacional
+# Importaciones relacionales desde db.py
 from db import SessionLocal, Reserva, Dueno, Mascota, cifrar_dato, descifrar_dato, inicializar_base_de_datos
 
-# Inicializar las tablas relacionales en la base Postgres de Railway
+# Inicializar base de datos
 inicializar_base_de_datos()
 
 # ==============================================================================
-# CONFIGURACIÓN DE LA INTERFAZ GRÁFICA (Estilo Profesional)
+# 🎨 CAPA DE DISEÑO AVANZADO: FORZAR TEXTOS BLANCOS EN EL MENÚ LATERAL VÍA CSS
 # ==============================================================================
-st.set_page_config(page_title="Gestión Guardería Exótica", page_icon="🐾", layout="wide")
+st.set_page_config(page_title="Reserva Fauna Exótica", page_icon="🦎", layout="wide")
 
-# --- CONTROL DE CONTENIDO DINÁMICO (Métricas Rápidas en el Home) ---
+st.markdown("""
+    <style>
+        /* --- ESTILOS EN EL ÁREA PRINCIPAL --- */
+        .main-title {
+            font-size: 42px !important;
+            font-weight: 800;
+            color: #1E8449;
+            margin-bottom: 5px;
+        }
+        .custom-card {
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(39, 174, 96, 0.06);
+            border-left: 6px solid #2ECC71;
+            margin-bottom: 25px;
+        }
+        .card-header {
+            color: #212121;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+        .crypto-block {
+            background-color: #F4F6F4;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 10px;
+            border: 1px dashed #2ECC71;
+        }
+
+        /* --- SOLUCIÓN DE VISIBILIDAD: FORZAR TEXTO BLANCO EN EL CUADRO VERDE (SIDEBAR) --- */
+        [data-testid="stSidebar"] {
+            color: #FFFFFF !important;
+        }
+        /* Forzar títulos, textos de radio buttons y subtítulos a blanco */
+        [data-testid="stSidebar"] h1, 
+        [data-testid="stSidebar"] h2, 
+        [data-testid="stSidebar"] h3, 
+        [data-testid="stSidebar"] p, 
+        [data-testid="stSidebar"] label, 
+        [data-testid="stSidebar"] span {
+            color: #FFFFFF !important;
+            font-weight: 500;
+        }
+        /* Asegurar que las opciones del Radio Button también sean completamente blancas */
+        [data-testid="stSidebar"] div[role="radiogroup"] label p {
+            color: #FFFFFF !important;
+        }
+        
+        /* Ajustar bordes redondeados en los inputs principales */
+        .stTextInput > div > div > input {
+            border-radius: 10px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# ==============================================================================
+# DASHBOARD: CÁLCULO DE MÉTRICAS OPERATIVAS
+# ==============================================================================
 db_session = SessionLocal()
 total_duenos = db_session.query(Dueno).count()
 total_mascotas = db_session.query(Mascota).count()
 total_reservas = db_session.query(Reserva).count()
 db_session.close()
 
-# Encabezado Principal del Dashboard
-st.markdown("# 🐾 Panel de Control — Guardería de Fauna Exótica")
-st.caption("Sistema transaccional seguro con capa criptográfica integrada en persistencia.")
+# Encabezado del Sistema
+st.markdown('<p class="main-title">🦎 EcoReserve — Guardería de Fauna Exótica</p>', unsafe_allow_html=True)
+st.markdown("*Plataforma de alta seguridad con encriptación relacional en tiempo real.*")
+st.markdown("<br>", unsafe_allow_html=True)
 
-# Renderizado de Tarjetas de Métricas (Inspirado en Sazón Perú)
+# Tarjetas de Métricas Estilizadas
 m1, m2, m3 = st.columns(3)
 with m1:
-    st.metric(label="👥 Propietarios Registrados", value=total_duenos)
+    st.markdown('<div style="background-color: #E8F5E9; padding: 15px; border-radius: 12px; border-bottom: 4px solid #2ECC71; text-align: center;">'
+                f'<span style="color: #1E8449; font-weight: bold; font-size: 14px;">👥 PROPIETARIOS ACTIVOS</span><br>'
+                f'<span style="font-size: 30px; font-weight: 800; color: #1E8449;">{total_duenos}</span>'
+                '</div>', unsafe_allow_html=True)
 with m2:
-    st.metric(label="🦎 Pacientes en Sistema", value=total_mascotas)
+    st.markdown('<div style="background-color: #FFF3E0; padding: 15px; border-radius: 12px; border-bottom: 4px solid #FF9800; text-align: center;">'
+                f'<span style="color: #E65100; font-weight: bold; font-size: 14px;">🦎 EJEMPLARES EN CUSTODIA</span><br>'
+                f'<span style="font-size: 30px; font-weight: 800; color: #EF6C00;">{total_mascotas}</span>'
+                '</div>', unsafe_allow_html=True)
 with m3:
-    st.metric(label="📅 Estadías/Reservas Activas", value=total_reservas)
+    st.markdown('<div style="background-color: #E3F2FD; padding: 15px; border-radius: 12px; border-bottom: 4px solid #2196F3; text-align: center;">'
+                f'<span style="color: #0D47A1; font-weight: bold; font-size: 14px;">📅 PLAZAS RESERVADAS</span><br>'
+                f'<span style="font-size: 30px; font-weight: 800; color: #1565C0;">{total_reservas}</span>'
+                '</div>', unsafe_allow_html=True)
 
-st.divider()
+st.markdown("<br><br>", unsafe_allow_html=True)
 
-# Menú de navegación lateral estilizado
-menu = ["📋 Registrar Dueño y Mascota", "📅 Programar Reservas", "🔍 Visualizar Registros y Auditoría"]
-opcion = st.sidebar.selectbox("Módulos del Sistema", menu)
+# ==============================================================================
+# MENÚ LATERAL (SIDEBAR) - TODO SE VERÁ BLANCO AQUÍ
+# ==============================================================================
+st.sidebar.markdown("## 🧭 Navegación")
+menu = ["📋 Registrar Ingreso", "📅 Agendar Hospedaje", "🔍 Sala de Auditoría Cifrada"]
+opcion = st.sidebar.radio("Selecciona un módulo:", menu)
 
 # ==============================================================================
 # MÓDULO 1: REGISTRO SEGURO DE CLIENTES
 # ==============================================================================
-if opcion == "📋 Registrar Dueño y Mascota":
-    st.subheader("📋 Alta de Clientes y Especies Exóticas")
+if opcion == "📋 Registrar Ingreso":
+    st.markdown("### 📋 Formulario de Check-in Biológico")
     db_session = SessionLocal()
     
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("### 👤 Datos del Propietario")
-        id_dueno = st.number_input("DNI / ID del Dueño", min_value=1, step=1)
-        nombre_dueno = st.text_input("Nombre Completo")
-        correo = st.text_input("Correo Electrónico")
-        telefono = st.text_input("Teléfono de Contacto")
+        st.info("👤 Datos de Identidad del Tutor")
+        id_dueno = st.number_input("Número de DNI / Pasaporte", min_value=1, step=1)
+        nombre_dueno = st.text_input("Nombre Completo del Propietario")
+        correo = st.text_input("Dirección de Correo")
+        telefono = st.text_input("Teléfono Urgencias (24/7)")
     with col2:
-        st.markdown("### 🦎 Características del Especécimen")
-        id_mascota = st.number_input("Código de la Mascota Único", min_value=1, step=1)
-        nombre_mascota = st.text_input("Nombre de la Mascota")
-        especie = st.selectbox("Especie Clasificada", ["Reptil", "Ave Exótica", "Anfibio", "Félido", "Otro"])
+        st.warning("🦖 Ficha de Taxonomía de la Mascota")
+        id_mascota = st.number_input("Código de Microchip / ID Animal", min_value=1, step=1)
+        nombre_mascota = st.text_input("Nombre del Especímen")
+        especie = st.selectbox("Clasificación de Especie", ["Reptil 🐍", "Ave Exótica 🦅", "Anfibio 🐸", "Félido Salvaje 🐆", "Invertebrado 🕷️"])
 
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("💾 Guardar Registro en Base de Datos", use_container_width=True):
+    if st.button("💾 Encriptar y Guardar en Matriz Relacional", use_container_width=True):
         if nombre_dueno and correo and nombre_mascota:
             try:
-                # Aplicamos la máscara criptográfica definida en tu db.py
                 nuevo_dueno = Dueno(
-                    id_dueno=id_dueno, 
-                    nombre=nombre_dueno, 
-                    correo_cifrado=cifrar_dato(correo), 
-                    telefono_cifrado=cifrar_dato(telefono)
+                    id_dueno=id_dueno, nombre=nombre_dueno, 
+                    correo_cifrado=cifrar_dato(correo), telefono_cifrado=cifrar_dato(telefono)
                 )
+                especie_limpia = especie.split()
                 nueva_mascota = Mascota(
-                    id_mascota=id_mascota, 
-                    id_dueno=id_dueno, 
-                    nombre_mascota=nombre_mascota, 
-                    especie=especie
+                    id_mascota=id_mascota, id_dueno=id_dueno, 
+                    nombre_mascota=nombre_mascota, especie=especie_limpia
                 )
                 
                 db_session.add(nuevo_dueno)
                 db_session.add(nueva_mascota)
                 db_session.commit()
-                st.success(f"✅ Éxito: Se ha guardado a {nombre_dueno} y su mascota '{nombre_mascota}' de forma cifrada.")
+                st.success(f"🎉 ¡Completado! {nombre_mascota} ha sido ingresado al sistema de forma segura.")
                 st.balloons()
             except Exception as e:
                 db_session.rollback()
-                st.error(f"⚠️ Error en la transacción relacional: {e}")
+                st.error(f"❌ Error transaccional en Postgres: {e}")
         else:
-            st.warning("⚠️ Campos Mandatorios: Por favor, completa los datos obligatorios antes de guardar.")
+            st.error("⚠️ Error: Todos los campos con texto son obligatorios.")
     db_session.close()
 
 # ==============================================================================
-# MÓDULO 2: GESTIÓN DE RESERVAS Y ALERTAS DE DIETA
+# MÓDULO 2: GESTIÓN DE RESERVAS
 # ==============================================================================
-elif opcion == "📅 Programar Reservas":
-    st.subheader("📅 Planificación de Estadías y Dietas Clínicas")
+elif opcion == "📅 Agendar Hospedaje":
+    st.markdown("### 📅 Cronograma de Hábitats y Nutrición")
     db_session = SessionLocal()
     
     mascotas_db = db_session.query(Mascota).all()
-    opciones_mascotas = {f"ID {m.id_mascota} - {m.nombre_mascota} ({m.especie})": m.id_mascota for m in mascotas_db}
+    opciones_mascotas = {f"🆔 ID {m.id_mascota} — Animal: {m.nombre_mascota} ({m.especie})": m.id_mascota for m in mascotas_db}
     
     if not opciones_mascotas:
-        st.info("ℹ️ Base relacional vacía. Registra una mascota en el módulo anterior para agendar hospedajes.")
+        st.info("🦎 No se detectan animales registrados. Registra un ejemplar primero.")
     else:
         col_res1, col_res2 = st.columns(2)
         with col_res1:
-            id_reserva = st.number_input("Código de Reserva Único", min_value=1, step=1)
-            mascota_sel = st.selectbox("Selecciona la Mascota Hospedada", list(opciones_mascotas.keys()))
+            id_reserva = st.number_input("Código de Reserva Interno", min_value=1, step=1)
+            mascota_sel = st.selectbox("Asignar Reserva a:", list(opciones_mascotas.keys()))
             fecha = st.date_input("Fecha de Ingreso al Recinto")
         with col_res2:
-            restricciones = st.text_area("Restricciones Alimenticias o Cuidados Clínicos Especiales (Crucial)")
+            restricciones = st.text_area("Prescripción Médica / Dieta Estricta (Vivo/Suplementos)")
             
-            # Alerta dinámica visual en tiempo real según lo que escribe el usuario
             if restricciones:
-                st.error("🚨 **ATENCIÓN:** Se ha especificado una restricción médica. Se registrará como alerta de alta prioridad.")
+                st.markdown('<div style="background-color: #FFEBEE; padding: 12px; border-radius: 8px; border-left: 5px solid #D32F2F; color: #C62828; font-weight: bold;">'
+                            '🚨 ALERTA NUTRICIONAL ACTIVA: Se notificará al personal de biólogos del sector.'
+                            '</div>', unsafe_allow_html=True)
             else:
-                st.success("🍏 **DIETA ESTÁNDAR:** Mascota sana sin condiciones clínicas especiales reportadas.")
+                st.markdown('<div style="background-color: #E8F5E9; padding: 12px; border-radius: 8px; border-left: 5px solid #2E7D32; color: #2E7D32;">'
+                            '🍏 Protocolo alimenticio basal (Sin condiciones clínicas reportadas).'
+                            '</div>', unsafe_allow_html=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("📅 Confirmar y Reservar Plaza", use_container_width=True):
+        if st.button("📅 Confirmar Asignación de Hábitat", use_container_width=True):
             try:
                 nueva_reserva = Reserva(
-                    id_reserva=id_reserva,
-                    id_mascota=opciones_mascotas[mascota_sel],
-                    fecha_ingreso=fecha,
-                    dieta_restriccion=restricciones
+                    id_reserva=id_reserva, id_mascota=opciones_mascotas[mascota_sel],
+                    fecha_ingreso=fecha, dieta_restriccion=restricciones
                 )
                 db_session.add(nueva_reserva)
                 db_session.commit()
-                st.success(f"✅ Reserva #{id_reserva} programada y vinculada correctamente.")
+                st.success(f"✅ Hábitat reservado con éxito bajo el registro de control #{id_reserva}.")
             except Exception as e:
                 db_session.rollback()
-                st.error(f"⚠️ Fallo al guardar la reserva: {e}")
+                st.error(f"❌ Error de persistencia: {e}")
     db_session.close()
 
 # ==============================================================================
-# MÓDULO 3: VISUALIZACIÓN DE REGISTROS Y AUDITORÍA CRIPTOGRÁFICA
+# MÓDULO 3: VISUALIZACIÓN Y AUDITORÍA
 # ==============================================================================
-elif opcion == "🔍 Visualizar Registros y Auditoría":
-    st.subheader("🔍 Auditoría de Datos en Producción y Desencapsulado")
+elif opcion == "🔍 Sala de Auditoría Cifrada":
+    st.markdown("### 🔍 Monitor de Registros y Desencapsulado Criptográfico")
     db_session = SessionLocal()
-    
     duenos_db = db_session.query(Dueno).all()
     
     if not duenos_db:
-        st.info("ℹ️ No hay registros guardados en la base de datos de Postgres en Railway.")
+        st.info("📂 El repositorio relacional de Postgres se encuentra vacío.")
     else:
         for d in duenos_db:
-            # Tarjeta contenedora visual por cada cliente
-            with st.container():
-                st.markdown(f"### 👤 Cliente: {d.nombre} — (Código Relacional: `{d.id_dueno}`)")
+            card_html = f"""
+            <div class="custom-card">
+                <div class="card-header">👤 Propietario: <b>{d.nombre}</b> &nbsp;|&nbsp; <span style='font-size:14px; color:#555;'>Código Relacional: <b>{d.id_dueno}</b></span></div>
+            </div>
+            """
+            st.markdown(card_html, unsafe_allow_html=True)
+            
+            c_datos, c_mascotas = st.columns(2)
+            with c_datos:
+                st.markdown("**🛡️ Estado de Seguridad de Datos (Capa AES/XOR):**")
                 
-                c_datos, c_mascotas = st.columns(2)
-                with c_datos:
-                    st.markdown("**🛡️ Seguridad de Datos en Reposo (Campos Cifrados):**")
-                    st.caption(f"📧 **Correo en Postgres:** `{d.correo_cifrado[:22]}...`")
-                    st.markdown(f"🔓 **Correo Descifrado:** {descifrar_dato(d.correo_cifrado)}")
-                    st.caption(f"📞 **Teléfono en Postgres:** `{d.telefono_cifrado[:22]}...`")
-                    st.markdown(f"🔓 **Teléfono Descifrado:** {descifrar_dato(d.telefono_cifrado)}")
+                st.markdown(f"📧 **Correo en Postgres (Cifrado):**")
+                st.markdown(f'<div class="crypto-block">{d.correo_cifrado}</div>', unsafe_allow_html=True)
+                st.markdown(f"🔓 **Correo Descifrado (Runtime):** `{descifrar_dato(d.correo_cifrado)}`")
                 
-                with c_mascotas:
-                    st.markdown("**🦎 Especímenes Asociados:**")
-                    if not d.mascotas:
-                        st.caption("Este cliente no cuenta con mascotas asignadas.")
-                    else:
-                        for m in d.mascotas:
-                            # Emojis dinámicos idénticos al estilo de Sazón Perú
-                            emoji = "🦎" if m.especie == "Reptil" else "🦅" if m.especie == "Ave Exótica" else "🐸" if m.especie == "Anfibio" else "🐆" if m.especie == "Félido" else "🐾"
-                            st.markdown(f"{emoji} **{m.nombre_mascota}** — *{m.especie}* (ID: `{m.id_mascota}`)")
-                            
-                            # Mostrar las reservas e indicaciones médicas directamente en la tarjeta de la mascota
-                            if m.reservas:
-                                for r in m.reservas:
-                                    st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;📅 **Reserva #{r.id_reserva}** (Ingreso: {r.fecha_ingreso})")
-                                    if r.dieta_restriccion:
-                                        st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;❌ *Dieta Estricta:* `{r.dieta_restriccion}`")
-                            else:
-                                st.markdown("&nbsp;&nbsp;&nbsp;&nbsp;*Sin estadías agendadas actualmente.*")
-                st.markdown("---")
-                
+                st.markdown(f"📞 **Teléfono en Postgres (Cifrado):**")
+                st.markdown(f'<div class="crypto-block">{d.telefono_cifrado}</div>', unsafe_allow_html=True)
+                st.markdown(f"🔓 **Teléfono Descifrado (Runtime):** `{descifrar_dato(d.telefono_cifrado)}`")
+            
+            with c_mascotas:
+                st.markdown("**🧬 Especímenes Asociados en Bioterio:**")
+                if not d.mascotas:
+                    st.caption("Ningún ejemplar vinculado a este tutor.")
+                else:
+                    for m in d.mascotas:
+                        emoji = "🐍" if m.especie == "Reptil" else "🦅" if m.especie == "Ave" else "🐸" if m.especie == "Anfibio" else "🐆" if m.especie == "Félido" else "🕷️" if m.especie == "Invertebrado" else "🐾"
+                        st.markdown(f"### {emoji} {m.nombre_mascota} <span style='font-size:14px; color:#777; font-weight:normal;'>({m.especie})</span>", unsafe_allow_html=True)
+                        
+                        if m.reservas:
+                            for r in m.reservas:
+                                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;📅 **Estadía #{r.id_reserva}** — Ingreso: `{r.fecha_ingreso}`")
+                                if r.dieta_restriccion:
+                                    st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;⚠️ *Dieta Crítica:* <span style='color:#D32F2F;'><b>{r.dieta_restriccion}</b></span>", unsafe_allow_html=True)
+                        else:
+                            st.markdown("&nbsp;&nbsp;&nbsp;&nbsp;*Sin registros de estadías activas.*")
+            st.markdown("<br>", unsafe_allow_html=True)
+            
     db_session.close()
