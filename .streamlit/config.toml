@@ -1,15 +1,14 @@
 [theme]
-# El color principal de los botones, selectores y líneas activas (Verde Selva)
-primaryColor = "#2E7D32"
+# Detalles activos y botones en Verde Amazónico brillante
+primaryColor = "#4CAF50"
 
-# El fondo principal de la aplicación (Blanco/Hueso limpio)
-backgroundColor = "#F9F9FB"
+# Fondo cálido tipo arena/marfil (adiós al blanco aburrido)
+backgroundColor = "#FDFBF7"
 
-# El fondo del menú lateral izquierdo (Marrón/Dorado elegante como Sazón Perú)
-secondaryBackgroundColor = "#EFEBE9"
+# Menú lateral en un tono Jungla Profundo que resalta de inmediato
+secondaryBackgroundColor = "#1B3A2B"
 
-# El color del texto principal para que contraste perfectamente (Gris casi negro)
-textColor = "#212121"
+# Texto principal en gris oscuro elegante para máxima legibilidad
+textColor = "#263238"
 
-# Tipo de fuente
 font = "sans serif"
